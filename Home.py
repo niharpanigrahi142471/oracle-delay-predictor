@@ -1,61 +1,53 @@
 import streamlit as st
 import pandas as pd
-import joblib
-from datetime import datetime
+from PIL import Image
+import os
 
 st.set_page_config(
     page_title="Oracle Delay Predictor",
-    page_icon="🔮",
-    layout="centered"
+    page_icon="📊",
+    layout="wide"
 )
 
-# -------- Landing Page Title --------
-st.title("🔮 Oracle Delay Predictor")
-st.markdown("""
-Welcome to the **Oracle Delay Predictor** — an AI-powered tool designed to predict potential delivery delays in Oracle Cloud ERP projects based on project inputs.
+# --- Sidebar ---
+st.sidebar.title("Navigation")
+st.sidebar.success("Select a page on the sidebar.")
 
-Upload your project configuration or enter sample data below to get started.
+# --- Title ---
+st.markdown("""
+<div style="text-align:center; padding:20px 0;">
+    <h1 style="color:#4F8BF9;">📊 Oracle Delay Predictor</h1>
+    <p>Predict order/project delays across Oracle Cloud systems using AI-powered logic.</p>
+</div>
+""", unsafe_allow_html=True)
+
+# --- File Upload Section ---
+st.header("📥 Upload Your CSV Data")
+uploaded_file = st.file_uploader("Upload your Oracle project delay CSV", type=["csv"])
+
+if uploaded_file:
+    df = pd.read_csv(uploaded_file)
+    st.write("### Preview Uploaded Data", df.head())
+    # Optional: show summary stats
+    st.write("### Delay Summary", df["Status"].value_counts())
+
+else:
+    st.info("📁 Please upload a CSV file to see live predictions and data analysis.")
+
+# --- Features Section ---
+st.markdown("---")
+st.markdown("### 🔍 How It Works")
+st.markdown("""
+- Upload your Oracle project CSV (with columns: Project_ID, Region, Module, Start_Date, End_Date, Status, SLA_Days, Actual_Days)
+- View uploaded data preview  
+- See delay status distribution  
 """)
 
+# --- Optional Diagram ---
+image_path = "images/oracle_diagram.png"
+if os.path.exists(image_path):
+    st.image(image_path, caption="System Diagram", use_column_width=True)
+
+# --- Footer ---
 st.markdown("---")
-
-# -------- Sample Form Input --------
-st.header("📥 Enter Project Parameters")
-client_type = st.selectbox("Client Type", ["Telecom", "Retail", "BFSI", "Manufacturing"])
-project_size = st.selectbox("Project Size", ["Small", "Medium", "Large"])
-customization_level = st.slider("Customization Level (0 to 10)", 0, 10, 5)
-integration_points = st.number_input("Integration Points", min_value=0, value=5)
-team_experience = st.selectbox("Team Experience Level", ["Low", "Medium", "High"])
-
-# -------- Prediction Logic --------
-if st.button("🔎 Predict Delay Risk"):
-    # Load mock model (replace with actual model later)
-    try:
-        model = joblib.load("oracle_model.pkl")  # If you trained a real model
-    except:
-        model = None
-
-    # Dummy logic for demo
-    risk_score = (customization_level * 2 + integration_points) / 10
-    if team_experience == "Low":
-        risk_score += 2
-    elif team_experience == "High":
-        risk_score -= 1
-
-    st.markdown("---")
-    st.subheader("📊 Prediction Result")
-    if risk_score < 4:
-        st.success("✅ Low Risk of Delay")
-    elif risk_score < 7:
-        st.warning("⚠️ Medium Risk of Delay")
-    else:
-        st.error("🚨 High Risk of Delay")
-
-    st.markdown(f"**Score:** {round(risk_score, 2)}")
-
-# -------- Footer --------
-st.markdown("---")
-st.markdown("""
-Made with ❤️ using [Streamlit](https://streamlit.io/)  
-[GitHub Repo](https://github.com/niharpanigrahi142471/oracle-delay-predictor)
-""")
+st.markdown("Made with ❤️ by Nihar • [GitHub Repo](https://github.com/niharpanigrahi142471/oracle-delay-predictor)")
