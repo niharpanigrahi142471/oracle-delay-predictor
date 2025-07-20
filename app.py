@@ -1,53 +1,43 @@
 import streamlit as st
 import pandas as pd
-from PIL import Image
 import os
 
-st.set_page_config(
-    page_title="Oracle Delay Predictor",
-    page_icon="📊",
-    layout="wide"
-)
+st.set_page_config(page_title="Oracle Project Analyzer", layout="wide")
 
-# --- Sidebar ---
-st.sidebar.title("Navigation")
-st.sidebar.success("Select a page on the sidebar.")
+st.title("📊 Oracle Fusion Project Upload & Analyzer")
 
-# --- Title ---
-st.markdown("""
-<div style="text-align:center; padding:20px 0;">
-    <h1 style="color:#4F8BF9;">📊 Oracle Delay Predictor</h1>
-    <p>Predict order/project delays across Oracle Cloud systems using AI-powered logic.</p>
-</div>
-""", unsafe_allow_html=True)
-
-# --- File Upload Section ---
-st.header("📥 Upload Your CSV Data")
-uploaded_file = st.file_uploader("Upload your Oracle project delay CSV", type=["csv"])
+uploaded_file = st.file_uploader("Upload your Oracle project file (.csv or .xlsx)", type=["csv", "xlsx"])
 
 if uploaded_file:
-    df = pd.read_csv(uploaded_file)
-    st.write("### Preview Uploaded Data", df.head())
-    # Optional: show summary stats
-    st.write("### Delay Summary", df["Status"].value_counts())
+    st.success("File uploaded successfully!")
 
+    # Detect file type
+    try:
+        if uploaded_file.name.endswith(".csv"):
+            df = pd.read_csv(uploaded_file)
+        else:
+            df = pd.read_excel(uploaded_file)
+
+        st.subheader("🔍 File Preview")
+        st.dataframe(df.head())
+
+        # Sample AI-like analysis
+        st.subheader("📈 AI-Based Project Insights")
+
+        modules = df['Module'].value_counts() if 'Module' in df.columns else None
+        owners = df['Owner'].value_counts() if 'Owner' in df.columns else None
+
+        if modules is not None:
+            st.markdown("**Modules Distribution:**")
+            st.bar_chart(modules)
+
+        if owners is not None:
+            st.markdown("**Ownership Load Distribution:**")
+            st.bar_chart(owners)
+
+        st.markdown("✅ Sample AI Insight: _Most open gaps are in Supply Chain & Revenue modules._")
+
+    except Exception as e:
+        st.error(f"Error processing file: {e}")
 else:
-    st.info("📁 Please upload a CSV file to see live predictions and data analysis.")
-
-# --- Features Section ---
-st.markdown("---")
-st.markdown("### 🔍 How It Works")
-st.markdown("""
-- Upload your Oracle project CSV (with columns: Project_ID, Region, Module, Start_Date, End_Date, Status, SLA_Days, Actual_Days)
-- View uploaded data preview  
-- See delay status distribution  
-""")
-
-# --- Optional Diagram ---
-image_path = "images/oracle_diagram.png"
-if os.path.exists(image_path):
-    st.image(image_path, caption="System Diagram", use_column_width=True)
-
-# --- Footer ---
-st.markdown("---")
-st.markdown("Made with ❤️ by Nihar • [GitHub Repo](https://github.com/niharpanigrahi142471/oracle-delay-predictor)")
+    st.info("Please upload a project file to begin.")
