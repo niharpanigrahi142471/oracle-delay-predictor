@@ -1,4 +1,9 @@
 python-dotenv
 streamlit
+pandasstreamlit
+openai
+python-dotenv
 pandas
+matplotlib
+seaborn
 openpyxl
