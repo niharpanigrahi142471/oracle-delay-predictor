@@ -1,70 +1,73 @@
 import streamlit as st
 import pandas as pd
 import openai
-from datetime import datetime
+import os
 
-# Configure Streamlit page
-st.set_page_config(page_title="Oracle Delay Analysis 🔍", layout="centered")
-st.title("🧾 Oracle Delay Analysis Tool")
-st.markdown("Upload your Oracle project Excel file with **Planned Date** and **Actual Date** columns.")
+st.set_page_config(page_title="Oracle Project Delay Analyzer", layout="wide")
 
-# Load API key from secrets
-openai.api_key = st.secrets["OPENAI_API_KEY"]
+st.title("📊 Oracle Project Delay Analyzer with AI Insights")
 
-# File upload
-uploaded_file = st.file_uploader("📁 Upload Excel file", type=["xlsx", "csv"])
+# Set your OpenAI API key (can also be set via st.secrets or environment)
+openai.api_key = st.secrets["openai"]["api_key"] if "openai" in st.secrets else os.getenv("OPENAI_API_KEY")
 
-if uploaded_file is not None:
+# Upload file
+uploaded_file = st.file_uploader("Upload Oracle Project Data (CSV or Excel)", type=["csv", "xlsx"])
+
+if uploaded_file:
     try:
-        # Read file based on extension
         if uploaded_file.name.endswith(".csv"):
             df = pd.read_csv(uploaded_file)
         else:
             df = pd.read_excel(uploaded_file)
 
-        # Validate required columns
-        if 'Planned Date' not in df.columns or 'Actual Date' not in df.columns:
-            st.error("❌ Excel must contain 'Planned Date' and 'Actual Date' columns.")
+        st.success("File uploaded successfully!")
+        st.write("🔍 Preview of Uploaded Data")
+        st.dataframe(df.head(20))
+
+        if 'Planned_End_Date' in df.columns and 'Actual_End_Date' in df.columns:
+            # Convert date columns
+            df['Planned_End_Date'] = pd.to_datetime(df['Planned_End_Date'], errors='coerce')
+            df['Actual_End_Date'] = pd.to_datetime(df['Actual_End_Date'], errors='coerce')
+            df['Delay_Days'] = (df['Actual_End_Date'] - df['Planned_End_Date']).dt.days
+            df['Delayed'] = df['Delay_Days'] > 0
+
+            delayed_df = df[df['Delayed'] == True]
+
+            st.subheader("🚨 Delayed Tasks Summary")
+            st.write(delayed_df[['Task_Name', 'Planned_End_Date', 'Actual_End_Date', 'Delay_Days']])
+
+            st.metric("Total Tasks", len(df))
+            st.metric("Delayed Tasks", len(delayed_df))
+
+            # Generate AI Insight
+            if len(delayed_df) > 0 and st.button("🧠 Generate Delay Insights with AI"):
+                sample_data = delayed_df[['Task_Name', 'Delay_Days']].head(10).to_string(index=False)
+                prompt = f"""You are a project delivery expert for Oracle ERP/SCM transformations.
+
+Here are delayed tasks from a project:
+
+{sample_data}
+
+Give possible reasons for delay and suggestions to avoid such delays in future."""
+
+                with st.spinner("Generating AI insights..."):
+                    try:
+                        response = openai.ChatCompletion.create(
+                            model="gpt-4",
+                            messages=[
+                                {"role": "system", "content": "You're a senior Oracle project manager."},
+                                {"role": "user", "content": prompt}
+                            ],
+                            temperature=0.6
+                        )
+                        ai_output = response['choices'][0]['message']['content']
+                        st.success("AI-Powered Delay Insights")
+                        st.markdown(ai_output)
+                    except Exception as e:
+                        st.error(f"OpenAI error: {e}")
         else:
-            # Convert to datetime
-            df['Planned Date'] = pd.to_datetime(df['Planned Date'], errors='coerce')
-            df['Actual Date'] = pd.to_datetime(df['Actual Date'], errors='coerce')
-
-            # Remove rows with invalid dates
-            df = df.dropna(subset=['Planned Date', 'Actual Date'])
-
-            # Calculate delay
-            df['Delay (days)'] = (df['Actual Date'] - df['Planned Date']).dt.days
-            st.success("✅ File loaded and delays calculated.")
-
-            st.subheader("📊 Delay Summary")
-            st.dataframe(df[['Planned Date', 'Actual Date', 'Delay (days)']])
-
-            # Prepare data for AI analysis
-            delay_data_text = df[['Planned Date', 'Actual Date', 'Delay (days)']].head(10).to_string(index=False)
-            prompt = f"""You are an Oracle Project Delay Analyst.
-
-Below is the extracted delay data from an Oracle implementation project. Based on the patterns, suggest possible reasons for delays and 3 mitigation strategies:
-
-{delay_data_text}
-"""
-
-            # Call OpenAI
-            with st.spinner("🧠 Analyzing delays using AI..."):
-                client = openai.OpenAI()
-                response = client.chat.completions.create(
-                    model="gpt-4",
-                    messages=[
-                        {"role": "system", "content": "You are a project delay analyst."},
-                        {"role": "user", "content": prompt}
-                    ],
-                    max_tokens=500,
-                    temperature=0.7
-                )
-
-            ai_analysis = response.choices[0].message.content
-            st.subheader("📌 AI Insights")
-            st.markdown(ai_analysis)
-
+            st.warning("Your file must contain 'Planned_End_Date' and 'Actual_End_Date' columns.")
     except Exception as e:
-        st.error(f"⚠️ Error: {e}")
+        st.error(f"File processing error: {e}")
+else:
+    st.info("Please upload a .csv or .xlsx file to begin analysis.")
