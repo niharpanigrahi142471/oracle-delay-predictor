@@ -4,9 +4,9 @@ from datetime import datetime
 from openai import OpenAI
 
 # Load OpenAI API key from Streamlit secrets
-client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
+client = OpenAI(api_key="sk-jSP7QDjNP6qVkLPV6c2G5umLOuRdZV1liDCFWB0ukJqKHQ5GlT3Hzq6WMhv3Sr27If9vIiwLWsT3BlbkFJcJoBLgHTBMCGJ2z8VFzkvpIqd3fEF2u1C3yM1aVi7Mo7G1_BhCIADHjvlsxS-ntTl2oA6CjRUA)
 
-# Page config
+# Page configsk-proj-jSP7QDjNP6qVkLPV6c2G5umLOuRdZV1liDCFWB0ukJqKHQ5GlT3Hzq6WMhv3Sr27If9vIiwLWsT3BlbkFJcJoBLgHTBMCGJ2z8VFzkvpIqd3fEF2u1C3yM1aVi7Mo7G1_BhCIADHjvlsxS-ntTl2oA6CjRUA
 st.set_page_config(page_title="Oracle Delay Analysis", layout="centered")
 st.title("🧾 Oracle Delay Analysis Tool")
 st.markdown("Upload your Excel or CSV file. Required columns: **Planned_End_Date** and **Actual_End_Date**.")
