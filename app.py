@@ -1,30 +1,63 @@
-import openai import pandas as pd from datetime import datetime import os
+import pandas as pd
+import openai
+import os
+from datetime import datetime
+from typing import Union
 
---- CONFIGURATION ---
+# ✅ Set OpenAI API Key from environment variable
+openai.api_key = os.getenv("OPENAI_API_KEY")
 
-openai.api_key = os.getenv("OPENAI_API_KEY")  # Or set directly MODEL = "gpt-4" FILE_PATH = "sample_project_delay_data.xlsx"  # Replace with .csv if needed
+# ✅ Helper to load Excel or CSV
+def load_file(file_path: str) -> pd.DataFrame:
+    if file_path.endswith('.xlsx'):
+        df = pd.read_excel(file_path)
+    elif file_path.endswith('.csv'):
+        df = pd.read_csv(file_path)
+    else:
+        raise ValueError("Only .xlsx and .csv files are supported")
+    return df
 
---- LOAD DATA ---
+# ✅ Compute delay days
+def calculate_delay(df: pd.DataFrame) -> pd.DataFrame:
+    if 'Planned_End_Date' not in df.columns or 'Actual_End_Date' not in df.columns:
+        raise ValueError("Your file must contain 'Planned_End_Date' and 'Actual_End_Date' columns.")
+    
+    df['Planned_End_Date'] = pd.to_datetime(df['Planned_End_Date'], errors='coerce')
+    df['Actual_End_Date'] = pd.to_datetime(df['Actual_End_Date'], errors='coerce')
+    df['Delay_Days'] = (df['Actual_End_Date'] - df['Planned_End_Date']).dt.days
+    return df
 
-def load_data(file_path): if file_path.endswith(".csv"): df = pd.read_csv(file_path) elif file_path.endswith(".xlsx"): df = pd.read_excel(file_path) else: raise ValueError("Unsupported file format") return df
+# ✅ Generate AI insights using latest OpenAI SDK (>=1.0.0)
+def get_ai_insight(df: pd.DataFrame) -> str:
+    prompt = f"""
+You are a project management AI. Analyze the following project delay data and summarize insights, risks, and possible root causes:
+{df[['Project_Name', 'Planned_End_Date', 'Actual_End_Date', 'Delay_Days']].to_string(index=False)}
+"""
 
---- PROCESS DATA ---
+    response = openai.chat.completions.create(
+        model="gpt-4",
+        messages=[{"role": "system", "content": "You are a senior project analyst."},
+                  {"role": "user", "content": prompt}],
+        temperature=0.7
+    )
+    return response.choices[0].message.content.strip()
 
-def compute_delays(df): df["Planned_End_Date"] = pd.to_datetime(df["Planned_End_Date"]) df["Actual_End_Date"] = pd.to_datetime(df["Actual_End_Date"]) df["Delay_Days"] = (df["Actual_End_Date"] - df["Planned_End_Date"]).dt.days return df
+# ✅ Main
+def main():
+    file_path = input("Enter the path to your Excel or CSV file: ").strip()
+    
+    try:
+        df = load_file(file_path)
+        df = calculate_delay(df)
+        print("\n📊 Delay Analysis Completed:")
+        print(df[['Project_Name', 'Delay_Days']])
 
---- GENERATE INSIGHTS ---
+        print("\n🤖 Generating AI Insight...\n")
+        insight = get_ai_insight(df)
+        print("🔍 AI Insight:\n")
+        print(insight)
+    except Exception as e:
+        print(f"⚠️ Error: {str(e)}")
 
-def generate_ai_insights(df): delay_summary = df[["Project_Name", "Delay_Days", "Owner", "Status"]].to_dict(orient="records") prompt = f""" You are a project management AI assistant. Analyze the following project delays: {delay_summary}
-
-Give insights on causes of delay, suggest corrective actions, and identify risky owners or patterns. Provide insights in bullet points. """
-
-response = openai.chat.completions.create(
-    model=MODEL,
-    messages=[{"role": "user", "content": prompt}]
-)
-return response.choices[0].message.content
-
---- MAIN ---
-
-if name == "main": df = load_data(FILE_PATH) df = compute_delays(df) insights = generate_ai_insights(df) print("\n--- AI Insights ---\n") print(insights)
-
+if __name__ == "__main__":
+    main()
