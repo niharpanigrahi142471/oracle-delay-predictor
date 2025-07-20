@@ -8,25 +8,26 @@ st.set_page_config(page_title="Oracle Delay Analysis", layout="centered")
 st.title("🧾 Oracle Delay Analysis Tool")
 st.markdown("Upload your Excel or CSV file containing Oracle project timelines. Required columns: **Planned_End_Date** and **Actual_End_Date**.")
 
-# Load API key securely from .streamlit/secrets.toml
+# Load API key from secrets
 openai.api_key = st.secrets["OPENAI_API_KEY"]
 
-# Upload file (CSV or Excel)
+# File uploader
 uploaded_file = st.file_uploader("📁 Upload Excel or CSV File", type=["xlsx", "csv"])
 
 if uploaded_file is not None:
     try:
-        # Detect file type
+        # Load DataFrame based on file type
         if uploaded_file.name.endswith('.csv'):
             df = pd.read_csv(uploaded_file)
         else:
             df = pd.read_excel(uploaded_file)
 
-        # Check for required columns
-        if 'Planned_End_Date' not in df.columns or 'Actual_End_Date' not in df.columns:
+        # Check required columns
+        required_cols = {'Planned_End_Date', 'Actual_End_Date'}
+        if not required_cols.issubset(df.columns):
             st.error("❌ Your file must contain 'Planned_End_Date' and 'Actual_End_Date' columns.")
         else:
-            # Convert dates
+            # Convert to datetime
             df['Planned_End_Date'] = pd.to_datetime(df['Planned_End_Date'], errors='coerce')
             df['Actual_End_Date'] = pd.to_datetime(df['Actual_End_Date'], errors='coerce')
 
@@ -34,12 +35,10 @@ if uploaded_file is not None:
             df['Delay_Days'] = (df['Actual_End_Date'] - df['Planned_End_Date']).dt.days
 
             st.success("✅ File uploaded and delays calculated.")
-
-            # Show delay summary
             st.subheader("📊 Delay Summary")
             st.dataframe(df[['Planned_End_Date', 'Actual_End_Date', 'Delay_Days']])
 
-            # Format for prompt
+            # Prepare input for OpenAI
             sample_rows = df[['Planned_End_Date', 'Actual_End_Date', 'Delay_Days']].head(10).to_string(index=False)
 
             prompt = f"""
@@ -53,20 +52,20 @@ You are an Oracle project management expert. Analyze the delay trends based on t
 Please respond as if advising a Delivery Head.
 """
 
-            # AI Analysis
+            # Call OpenAI Chat API using SDK v1.x format
             with st.spinner("🧠 Analyzing delays using OpenAI GPT-4..."):
-                response = openai.ChatCompletion.create(
+                response = openai.chat.completions.create(
                     model="gpt-4",
                     messages=[
                         {"role": "system", "content": "You are an Oracle program delay analyst."},
                         {"role": "user", "content": prompt}
                     ],
-                    max_tokens=500
+                    max_tokens=700
                 )
 
-            result = response['choices'][0]['message']['content']
+            result = response.choices[0].message.content
             st.subheader("📌 AI Insight")
             st.write(result)
 
     except Exception as e:
-        st.error(f"⚠️ Error occurred: {e}")
+        st.error(f"⚠️ Error occurred: {str(e)}")
