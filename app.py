@@ -1,83 +1,79 @@
 import streamlit as st
 import pandas as pd
-import openai
+import os
+from dotenv import load_dotenv
+from openai import OpenAI
 
-# Set page
-st.set_page_config(page_title="Oracle Fusion Analyzer", layout="wide")
-st.title("📊 Oracle Fusion Project Analyzer with AI Insights")
+# Load .env variables
+load_dotenv()
 
-# Get OpenAI key
-openai.api_key = st.secrets.get("OPENAI_API_KEY", "")
+# Streamlit config
+st.set_page_config(page_title="Oracle Project Analyzer", layout="wide")
+st.title("📊 Oracle Fusion Project Upload & Analyzer")
 
-# Upload file
-uploaded_file = st.file_uploader("📂 Upload Oracle project (.csv or .xlsx)", type=["csv", "xlsx"])
+# Read OpenAI key
+openai_api_key = os.getenv("OPENAI_API_KEY")
+if not openai_api_key and "OPENAI_API_KEY" in st.secrets:
+    openai_api_key = st.secrets["OPENAI_API_KEY"]
+
+# Set up OpenAI client
+client = OpenAI(api_key=openai_api_key)
+
+# File uploader
+uploaded_file = st.file_uploader("Upload your Oracle project file (.csv or .xlsx)", type=["csv", "xlsx"])
 
 if uploaded_file:
+    st.success("File uploaded successfully!")
+
     try:
-        # Read file
         if uploaded_file.name.endswith(".csv"):
             df = pd.read_csv(uploaded_file)
         else:
             df = pd.read_excel(uploaded_file)
 
+        st.subheader("🔍 File Preview")
+        st.dataframe(df.head())
+
         # Normalize column names
-        df.columns = df.columns.str.strip().str.lower()
+        df.columns = [col.strip().capitalize() for col in df.columns]
 
-        st.success("✅ File uploaded successfully!")
-        st.subheader("🔍 Preview")
-        st.dataframe(df.head(10))
+        # Charts
+        if 'Module' in df.columns:
+            modules = df['Module'].value_counts()
+            st.markdown("### 📌 Modules Distribution")
+            st.bar_chart(modules)
 
-        # Show module chart
-        if 'module' in df.columns:
-            st.subheader("📊 Module Distribution")
-            st.bar_chart(df['module'].value_counts())
-        else:
-            st.warning("⚠️ 'Module' column not found.")
+        if 'Owner' in df.columns:
+            owners = df['Owner'].value_counts()
+            st.markdown("### 🧑 Ownership Load Distribution")
+            st.bar_chart(owners)
 
-        # Show owner chart
-        if 'owner' in df.columns:
-            st.subheader("👤 Owner Distribution")
-            st.bar_chart(df['owner'].value_counts())
-        else:
-            st.warning("⚠️ 'Owner' column not found.")
+        # Prepare prompt
+        st.subheader("🤖 AI-Based Project Insight")
 
-        # --- AI Insights ---
-        st.subheader("🧠 AI Insights on Oracle Fusion Project")
+        sample_rows = df.head(10).to_dict(orient='records')
+        insight_prompt = (
+            "You are an Oracle Project Analyzer AI. "
+            "Based on the below project data, give smart insights in 3 bullet points. "
+            "Focus on gaps, ownership concentration, and module-wise risks.\n\n"
+            f"Data Sample:\n{sample_rows}"
+        )
 
-        # Prepare a summary text
-        data_preview = df.head(20).to_string(index=False)
-
-        prompt = f"""
-You are a senior Oracle ERP transformation consultant. Based on this project data (first 20 rows), give 5 concise insights:
-
-Project Data:
-{data_preview}
-
-Output format:
-1. Key pain points across modules
-2. Overloaded owners or teams
-3. Possible duplicate modules or overlaps
-4. Suggested governance improvements
-5. Transformation risks to watch
-"""
-
-        # Call OpenAI
-        with st.spinner("🧠 Thinking... generating insights..."):
-            response = openai.ChatCompletion.create(
+        with st.spinner("Generating insights..."):
+            chat_response = client.chat.completions.create(
                 model="gpt-4",
                 messages=[
-                    {"role": "system", "content": "You are a senior Oracle implementation expert."},
-                    {"role": "user", "content": prompt}
+                    {"role": "system", "content": "You are an expert in Oracle Fusion project analysis."},
+                    {"role": "user", "content": insight_prompt}
                 ],
-                temperature=0.4,
-                max_tokens=500
+                temperature=0.3
             )
 
-            gpt_output = response['choices'][0]['message']['content']
-            st.success("✅ Insights generated successfully!")
-            st.markdown(gpt_output)
+            insight = chat_response.choices[0].message.content
+            st.markdown("### 📌 AI Insight:")
+            st.markdown(insight)
 
     except Exception as e:
-        st.error(f"❌ Error processing file: {e}")
+        st.error(f"⚠️ Error processing file: {e}")
 else:
-    st.info("📥 Please upload a file to begin.")
+    st.info("📤 Please upload a project file to begin.")
