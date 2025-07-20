@@ -4,7 +4,13 @@ import openai
 
 # Load variables from .env file
 load_dotenv()
+# Instead of using dotenv
+# from dotenv import load_dotenv
+# load_dotenv()
+# openai.api_key = os.getenv("OPENAI_API_KEY")
 
+# Use Streamlit secrets instead:
+openai.api_key = st.secrets["OPENAI_API_KEY"]
 # Read the key securely
 openai.api_key = os.getenv("OPENAI_API_KEY")
 import streamlit as st
