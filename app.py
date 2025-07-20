@@ -1,3 +1,12 @@
+from dotenv import load_dotenv
+import os
+import openai
+
+# Load variables from .env file
+load_dotenv()
+
+# Read the key securely
+openai.api_key = os.getenv("OPENAI_API_KEY")
 import streamlit as st
 import pandas as pd
 import os
