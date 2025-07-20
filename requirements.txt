@@ -5,3 +5,4 @@ pandas
 matplotlib
 seaborn
 openpyxl
+openai>=1.1.0
