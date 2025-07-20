@@ -1,44 +1,66 @@
-import os
-from dotenv import load_dotenv
-import openai
 import streamlit as st
 import pandas as pd
+import openai
+from dotenv import load_dotenv
+import os
 
-# Load environment variables from .env (for local dev)
+# Load API key
 load_dotenv()
-
-# Read OpenAI API key from environment variable
 openai.api_key = os.getenv("OPENAI_API_KEY")
 
-# Streamlit UI
-st.set_page_config(page_title="AI Code Insight", layout="wide")
-st.title("🤖 AI-Powered Code Insight")
+# Title
+st.title("📊 Oracle Delay Predictor with AI Insights")
 
-uploaded_file = st.file_uploader("Upload a Python file", type=["py"])
+# File uploader
+uploaded_file = st.file_uploader("Upload Oracle Delay Excel File", type=["xlsx", "xls"])
 
-if not openai.api_key:
-    st.error("❌ OpenAI API key not found. Set `OPENAI_API_KEY` as an environment variable or secret.")
-else:
-    if uploaded_file is not None:
-        try:
-            code = uploaded_file.read().decode("utf-8")
+if uploaded_file:
+    try:
+        df = pd.read_excel(uploaded_file)
 
-            # Call OpenAI to get insights
-            with st.spinner("Generating AI insights..."):
-                response = openai.ChatCompletion.create(
-                    model="gpt-4",
-                    messages=[
-                        {"role": "system", "content": "You are a senior software architect. Review the given Python code and provide concise insights: possible bugs, improvements, structure flaws, naming issues, or optimization ideas."},
-                        {"role": "user", "content": code}
-                    ],
-                    temperature=0.3
-                )
+        st.subheader("📄 Uploaded Data Preview")
+        st.dataframe(df.head())
 
-                ai_insight = response['choices'][0]['message']['content']
-                st.markdown("### ✅ AI Code Insight")
-                st.success(ai_insight)
+        # Simple delay analysis
+        if 'Planned Date' in df.columns and 'Actual Date' in df.columns:
+            df['Delay (Days)'] = (pd.to_datetime(df['Actual Date']) - pd.to_datetime(df['Planned Date'])).dt.days
+            avg_delay = df['Delay (Days)'].mean()
 
-        except Exception as e:
-            st.error(f"⚠️ Error processing file: {e}")
-    else:
-        st.info("👆 Please upload a `.py` file to analyze.")
+            st.subheader("📈 Delay Analysis")
+            st.metric("Average Delay (Days)", round(avg_delay, 2))
+            st.bar_chart(df['Delay (Days)'])
+
+            # Generate AI Insight
+            st.subheader("🧠 AI Insight")
+            sample_data = df[['Module', 'Planned Date', 'Actual Date', 'Delay (Days)']].dropna().head(5).to_dict()
+
+            prompt = (
+                "You are an expert project manager. Analyze the following delay data and provide 3 key insights "
+                "on why delays might be happening and suggest improvements:\n\n"
+                f"{sample_data}"
+            )
+
+            try:
+                with st.spinner("Generating AI insights..."):
+                    response = openai.chat.completions.create(
+                        model="gpt-4",
+                        messages=[
+                            {"role": "system", "content": "You are a helpful assistant for project delay analysis."},
+                            {"role": "user", "content": prompt}
+                        ],
+                        temperature=0.5,
+                        max_tokens=300
+                    )
+                    insight = response.choices[0].message.content
+                    st.markdown(f"**AI Insight:**\n\n{insight}")
+            except Exception as e:
+                st.error(f"Failed to generate AI insight: {e}")
+
+        else:
+            st.error("Your Excel must contain 'Planned Date' and 'Actual Date' columns.")
+
+    except Exception as e:
+        st.error(f"Error reading file: {e}")
+
+# Footer
+st.caption("Developed for Oracle Delay Prediction 🔍")
