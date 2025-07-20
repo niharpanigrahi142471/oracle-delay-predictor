@@ -1,43 +1,54 @@
 import streamlit as st
 import pandas as pd
+import openai
 import os
 
-st.set_page_config(page_title="Oracle Project Analyzer", layout="wide")
+# Setup Streamlit page
+st.set_page_config(page_title="Oracle Fusion Project Analyzer", layout="wide")
+
+# Set OpenAI key from Streamlit secrets (preferred for deployed apps)
+openai.api_key = st.secrets.get("OPENAI_API_KEY", "")
 
 st.title("📊 Oracle Fusion Project Upload & Analyzer")
 
 uploaded_file = st.file_uploader("Upload your Oracle project file (.csv or .xlsx)", type=["csv", "xlsx"])
 
 if uploaded_file:
-    st.success("File uploaded successfully!")
+    st.success("✅ File uploaded successfully!")
 
-    # Detect file type
     try:
+        # Detect file type and read
         if uploaded_file.name.endswith(".csv"):
             df = pd.read_csv(uploaded_file)
         else:
             df = pd.read_excel(uploaded_file)
 
         st.subheader("🔍 File Preview")
-        st.dataframe(df.head())
+        st.dataframe(df.head(10))
 
-        # Sample AI-like analysis
+        # --- AI-Based Analysis ---
         st.subheader("📈 AI-Based Project Insights")
 
-        modules = df['Module'].value_counts() if 'Module' in df.columns else None
-        owners = df['Owner'].value_counts() if 'Owner' in df.columns else None
-
-        if modules is not None:
+        # Module distribution
+        if "Module" in df.columns:
+            module_counts = df["Module"].value_counts()
             st.markdown("**Modules Distribution:**")
-            st.bar_chart(modules)
+            st.bar_chart(module_counts)
+        else:
+            st.warning("⚠️ 'Module' column not found in the file.")
 
-        if owners is not None:
+        # Owner distribution
+        if "Owner" in df.columns:
+            owner_counts = df["Owner"].value_counts()
             st.markdown("**Ownership Load Distribution:**")
-            st.bar_chart(owners)
+            st.bar_chart(owner_counts)
+        else:
+            st.warning("⚠️ 'Owner' column not found in the file.")
 
-        st.markdown("✅ Sample AI Insight: _Most open gaps are in Supply Chain & Revenue modules._")
+        # Sample Insight
+        st.markdown("✅ _Sample AI Insight: Most open gaps are in Supply Chain & Revenue modules._")
 
     except Exception as e:
-        st.error(f"Error processing file: {e}")
+        st.error(f"❌ Error while reading or analyzing file: {e}")
 else:
-    st.info("Please upload a project file to begin.")
+    st.info("📂 Please upload a project file to begin.")
